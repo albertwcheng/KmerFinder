@@ -405,7 +405,7 @@ int main(int argc,char**argv){
 	cerr<<"done reading"<<endl;
 	theFinder.printStat(cerr);
 	cerr<<"processing..."<<endl;
-	cerr<<"kmer\tenrichment"<<endl;
+	cout<<"kmer\tenrichment"<<endl;
 	for(int i=0;i<howmanyToFind;i++){
 		kmerRecord* nextKmer=theFinder.getNextEnrichedKmers();
 		if(!nextKmer)
