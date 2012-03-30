@@ -270,6 +270,9 @@ public:
 	}
 	
 	kmerRecord* getNextEnrichedKmers(){
+		if(kmers.size()==0)
+			return NULL;
+		
 		kmers.sort(); //sort the linked list by enrichment score
 		kmerRecord*result=kmers.back();
 		kmers.pop_back();
@@ -405,6 +408,8 @@ int main(int argc,char**argv){
 	cerr<<"kmer\tenrichment"<<endl;
 	for(int i=0;i<howmanyToFind;i++){
 		kmerRecord* nextKmer=theFinder.getNextEnrichedKmers();
+		if(!nextKmer)
+			break;
 		cout<<nextKmer->kmerSeq<<"\t"<<nextKmer->enrichment()<<endl;
 	}
 	cerr<<"done"<<endl;
