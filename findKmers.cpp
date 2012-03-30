@@ -281,7 +281,7 @@ public:
 			
 			numSeqForeground++;
 			
-			if(numSeqForeground%1000==1){
+			if(numSeqForeground%100000==1){
 				cerr<<"\treading seq\t"<<numSeqForeground<<endl;
 			}
 			
@@ -321,7 +321,7 @@ public:
 			
 			numSeqBackground++;
 			
-			if(numSeqBackground%1000==1){
+			if(numSeqBackground%100000==1){
 				cerr<<"\treading seq\t"<<numSeqBackground<<endl;
 			}
 			
@@ -402,9 +402,10 @@ int main(int argc,char**argv){
 	cerr<<"done reading"<<endl;
 	theFinder.printStat(cerr);
 	cerr<<"processing..."<<endl;
+	cerr<<"kmer\tenrichment"<<endl;
 	for(int i=0;i<howmanyToFind;i++){
 		kmerRecord* nextKmer=theFinder.getNextEnrichedKmers();
-		cout<<"The first kmer="<<nextKmer->kmerSeq<<" enrichment="<<nextKmer->enrichment()<<endl;
+		cout<<nextKmer->kmerSeq<<"\t"<<nextKmer->enrichment()<<endl;
 	}
 	cerr<<"done"<<endl;
 	
