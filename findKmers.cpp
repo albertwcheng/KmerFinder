@@ -552,6 +552,7 @@ int main(int argc,char**argv){
 	
 	if(argc<5){ 
 		cerr<<"Usage:" <<argv[0]<<" fgfilename bgfilename k howmanyToFind"<<endl;
+		cerr<<"Description: find <howmanyToFind> top enriched <k>-mers from HT-SELEX experiments using <fgfilename> and <bgfilename> fastq files assuming there's only one motif per sequence"<<endl;
 		return 1;
 	}
 	
