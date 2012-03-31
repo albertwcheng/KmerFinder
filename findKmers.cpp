@@ -7,10 +7,16 @@
 #include <vector>
 #include <inttypes.h>
 #include <stdlib.h>
+#include <time.h>
 using namespace std;
 
 
+#define REQUIRE_BACKGROUND_PRESENCE
+
+
 #define uint64 uint64_t
+
+#define VERSION "1.0"
 
 template <class T>
 class SmartPtr
@@ -93,7 +99,7 @@ public:
 		
 		while(fin.good()){
 			string line;
-			fin>>line; //how to read whole line?
+			getline(fin,line); 
 			//cerr<<line<<endl;
 			if(line.length()==0)
 				continue;
@@ -143,6 +149,81 @@ public:
 
 };
 
+
+
+class SimpleFastqReader
+{
+	
+public:
+	virtual void onNewSeq(const string& name,const string& seq,const string& quals)=0;
+	
+	inline void readFile(const string& filename){
+		ifstream fin(filename.c_str());
+		string name;
+		string seq;
+		string quals;
+
+		uint64 reallino=0;
+		uint64 lino=0;
+		
+		while(fin.good()){
+			string line;
+			getline(fin,line); 
+			
+			lino++;
+			
+			if(line.length()==0)
+				continue;
+			
+			reallino++;
+			
+			switch(reallino%4){
+				case 1: //a start of new seq
+					
+					if(line[0]!='@'){
+						cerr<<"Warning: improper Fastq formatting at "<<filename<<":line "<<lino<<"="<<line<<".Expecting @"<<endl;
+					}
+					
+					if(seq.length()>0){
+						this->onNewSeq(name,seq,quals);
+					}
+					
+					name=line.substr(1); //to the end
+					seq="";
+					quals="";
+					
+
+					
+					
+					break;
+				case 2:
+					seq=line;
+					break;
+				case 3:
+					if(line[0]!='+'){
+						cerr<<"Warning: improper Fastq formatting at "<<filename<<":line "<<lino<<"="<<line<<".Expecting +"<<endl;
+					}
+					break;
+				case 0:
+					quals=line;
+					break;
+					
+				default:
+					break;
+					
+			}
+		}
+		
+		if(seq.length()>0){
+			this->onNewSeq(name,seq,quals);
+		}
+		
+		fin.close();
+	}
+	
+};
+
+
 class SeqRecord;
 
 class kmerFinder;
@@ -159,9 +240,29 @@ public:
 		
 	}
 	
+	inline uint64 fgInstances() const{
+		return this->seqs.size();
+	}
+	
+	
 	inline double enrichment() const{
+		
+	#ifdef REQUIRE_BACKGROUND_PRESENCE
+		return double(this->seqs.size())/backgroundCount;
+	#else		
 		return double(this->seqs.size())/(backgroundCount+1); //background plus 1 to avoid division by zero
 		//no need to care about the totalkmers in foreground and background becoz they are the same for all kmers. argmax not important to know these numbers
+	#endif
+		
+	}
+	
+	inline double normalizedEnrichment(double totalFgKmers,double totalBgKmers) const{
+	#ifdef REQUIRE_BACKGROUND_PRESENCE
+		return (double(this->seqs.size())/totalFgKmers)/(double(backgroundCount)/totalBgKmers);
+	#else
+		return (double(this->seqs.size())/totalFgKmers)/(double(backgroundCount+1)/totalBgKmers);
+	#endif
+		
 	}
 	
 	inline bool operator < (const kmerRecord& right) const{
@@ -169,7 +270,7 @@ public:
 	
 	}
 	
-	
+	void kmerDisappearFromSeqs();
 	
 	void removeSequencesContainingThisKmer();
 };
@@ -188,6 +289,10 @@ public:
 		_kmer->seqs.insert(this);
 		kmersFromThisSeq.insert(_kmer);
 	}
+	
+	void unregisterKmer(kmerRecord* _kmer){
+		kmersFromThisSeq.erase(_kmer);
+	}
 };
 
 
@@ -199,13 +304,20 @@ void kmerRecord::removeSequencesContainingThisKmer(){
 	
 }
 
+void kmerRecord::kmerDisappearFromSeqs(){
+	for(multiset<SeqRecord*>::iterator i=seqs.begin();i!=seqs.end();i++){
+		SeqRecord* thisSeq=(*i);
+		thisSeq->unregisterKmer(this);
+	}
+}
+
 #define READ_FOREGROUND 1
 #define READ_BACKGROUND 2
 
 
 
 
-class kmerFinder:public SimpleFastxReader
+class kmerFinder:public SimpleFastqReader
 {
 public:
 	list<SmartPtr<kmerRecord> > kmers;
@@ -227,6 +339,10 @@ public:
 	
 	kmerFinder(int _k):mode(READ_BACKGROUND),k(_k),foregroundTotalKmerCount(0),backgroundTotalKmerCount(0),numSeqForeground(0),numSeqBackground(0){
 		
+	}
+	
+	inline uint64 numUniqKmers(){
+		return kmers.size();
 	}
 	
 	bool isValidSeq(const string& seq){
@@ -261,12 +377,45 @@ public:
 			kmers.push_back(i->second);
 		}
 		
+
 	}
 	
 	inline void readBackground(const string&filename){
 		mode=READ_BACKGROUND;
 		backgroundFilename=filename;
 		this->readFile(filename);
+		
+		
+		
+		#ifdef REQUIRE_BACKGROUND_PRESENCE
+		
+		cerr<<"removing backgroundcount=0 kmers..."<<endl;
+		
+		vector<list<SmartPtr<kmerRecord> >::iterator> toRemove;
+		
+		for(list<SmartPtr<kmerRecord> >::iterator i=kmers.begin();i!=kmers.end();i++){
+			if((*i)->backgroundCount<1){
+				toRemove.push_back(i);
+			//}else{
+				//cerr<<"bigger"<<endl;
+			}
+		}
+		
+		for(vector<list<SmartPtr<kmerRecord> >::iterator>::iterator i=toRemove.begin();i!=toRemove.end();i++){
+			list<SmartPtr<kmerRecord> >::iterator removeeI=*i;
+			kmerRecord* removee=*removeeI;
+			removee->kmerDisappearFromSeqs();
+			foregroundTotalKmerCount-=removee->fgInstances(); //update foreground total kmer count
+			kmers.erase(removeeI);
+			delete removee;//now can remove this from member
+		}
+		
+		cerr<<toRemove.size()<<"unique backgroundcount=0 kmers removed"<<endl;
+		
+		#endif
+		
+		//now we can remove the map kmerInitStruct to save space
+		kmerInitStruct.clear();		
 	}
 	
 	kmerRecord* getNextEnrichedKmers(){
@@ -367,15 +516,18 @@ public:
 	}
 	
 	void printStat(ostream& os){
-		os<<"Foreground Seq Count="<<numSeqForeground<<endl;
-		os<<"Foreground Kmer Count="<<foregroundTotalKmerCount<<endl;
-		os<<"Background Seq Count="<<numSeqBackground<<endl;
-		os<<"Background Kmer Count="<<backgroundTotalKmerCount<<endl;
+		os<<"#Foreground Seq Count="<<numSeqForeground<<endl;
+		os<<"#Foreground Kmer Count="<<foregroundTotalKmerCount<<endl;
+		
+		os<<"#Background Seq Count="<<numSeqBackground<<endl;
+		os<<"#Background Kmer Count="<<backgroundTotalKmerCount<<endl;
+		
+		os<<"#Uniq Kmer Count="<<kmers.size()<<endl;
 	}
 	
 };
 
-class TestSimpleFastxReader:public SimpleFastxReader{
+class TestSimpleFastxReader:public SimpleFastqReader{
 public:
 	void onNewSeq(const string& name,const string& seq,const string& quals)
 	{
@@ -385,12 +537,23 @@ public:
 
 int main(int argc,char**argv){
 	
+	
+	/*TestSimpleFastxReader f;
+	f.readFile(argv[1]);
+	return 0;*/
+	
+	cerr<<"Find Kmers "<<VERSION<<endl;
+	cerr<<"(";
+#ifdef REQUIRE_BACKGROUND_PRESENCE
+	cerr<<"REQUIRE_BACKGROUND_PRESENCE=ON)"<<endl;
+#else
+	cerr<<"REQUIRE_BACKGROUND_PRESENCE=OFF)"<<endl;
+#endif
+	
 	if(argc<5){ 
 		cerr<<"Usage:" <<argv[0]<<" fgfilename bgfilename k howmanyToFind"<<endl;
 		return 1;
 	}
-	//TestSimpleFastxReader f;
-	//f.readFile(argv[1]);
 	
 	int k=atoi(argv[3]);
 	int howmanyToFind=atoi(argv[4]);
@@ -398,22 +561,34 @@ int main(int argc,char**argv){
 	string bgfilename=argv[2];
 	
 	kmerFinder theFinder(k);
-	cerr<<"reading foreground "<<fgfilename<<endl;
+	
+	cerr<<"reading foreground..."<<fgfilename<<endl;
+	clock_t t1=clock();
 	theFinder.readForeground(fgfilename);
-	cerr<<"reading background "<<bgfilename<<endl;
+	clock_t t2=clock();
+	cerr<<"done reading and processing foreground CPU time used="<<((t2-t1)/(double)CLOCKS_PER_SEC)<<" seconds"<<endl;
+	cerr<<"reading background..."<<bgfilename<<endl;
 	theFinder.readBackground(bgfilename);
-	cerr<<"done reading"<<endl;
-	theFinder.printStat(cerr);
-	cerr<<"processing..."<<endl;
-	cout<<"kmer\tenrichment"<<endl;
+	clock_t t3=clock();
+	cerr<<"done reading and processing background CPU time used="<<((t3-t2)/(double)CLOCKS_PER_SEC)<<" seconds"<<endl;
+	theFinder.printStat(cout);
+	cerr<<"finding kmers..."<<endl;
+	cout<<"kmer\tenrichment\tnormalizedEnrichment\tfgInstances\tbgInstances"<<endl;
+	
+	if(howmanyToFind<1){
+		howmanyToFind=theFinder.numUniqKmers();
+	}
+	
 	for(int i=0;i<howmanyToFind;i++){
 		kmerRecord* nextKmer=theFinder.getNextEnrichedKmers();
 		if(!nextKmer)
 			break;
-		cout<<nextKmer->kmerSeq<<"\t"<<nextKmer->enrichment()<<endl;
+		cout<<nextKmer->kmerSeq<<"\t"<<nextKmer->enrichment()<<"\t"<<nextKmer->normalizedEnrichment(theFinder.foregroundTotalKmerCount,theFinder.backgroundTotalKmerCount)<<"\t"<<nextKmer->fgInstances()<<"\t"<<nextKmer->backgroundCount<<endl;
 	}
-	cerr<<"done"<<endl;
 	
+	clock_t t4=clock();
+	cerr<<"done finding kmers CPU time used="<<((t4-t3)/(double)CLOCKS_PER_SEC)<<" seconds"<<endl;
+	cerr<<"done total CPU time used="<<((t4-t1)/(double)CLOCKS_PER_SEC)<<" seconds"<<endl;
 	return 0;
 	
 }
