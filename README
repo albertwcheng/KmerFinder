@@ -1,0 +1,11 @@
+Find enriched kmer in SELEX library (assuming there exist only one motif per sequence)
+
+=== COMPILATION ===
+
+bash make.sh
+
+=== RUN ===
+
+Usage:./findKmers <fgfilename> <bgfilename> <k> <howmanyToFind>
+Description: find <howmanyToFind> top enriched <k>-mers from HT-SELEX experiments using <fgfilename> and <bgfilename> fastq files assuming there's only one motif per sequence
+Specify <howmanyToFind>=0 to print all kmers
