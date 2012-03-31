@@ -535,13 +535,13 @@ public:
 	}
 	
 	void printStat(ostream& os){
-		os<<"#Foreground Seq Count="<<numSeqForeground<<endl;
-		os<<"#Foreground Kmer Count="<<foregroundTotalKmerCount<<endl;
+		os<<"#ForegroundSeqCount="<<numSeqForeground<<endl;
+		os<<"#ForegroundKmerCount="<<foregroundTotalKmerCount<<endl;
 		
-		os<<"#Background Seq Count="<<numSeqBackground<<endl;
-		os<<"#Background Kmer Count="<<backgroundTotalKmerCount<<endl;
+		os<<"#BackgroundSeqCount="<<numSeqBackground<<endl;
+		os<<"#BackgroundKmerCount="<<backgroundTotalKmerCount<<endl;
 		
-		os<<"#Uniq Kmer Count="<<kmers.size()<<endl;
+		os<<"#UniqKmerCount="<<kmers.size()<<endl;
 	}
 	
 };
@@ -583,6 +583,13 @@ int main(int argc,char**argv){
 	
 	kmerFinder theFinder(k);
 	
+	cerr<<"command:"<<argv[0];
+	for(int i=1;i<argc;i++){
+		cerr<<" "<<argv[i];
+	}
+	
+	cerr<<endl;
+	
 	cerr<<"reading foreground..."<<fgfilename<<endl;
 	clock_t t1=clock();
 	theFinder.readForeground(fgfilename);
@@ -592,6 +599,19 @@ int main(int argc,char**argv){
 	theFinder.readBackground(bgfilename);
 	clock_t t3=clock();
 	cerr<<"done reading and processing background CPU time used="<<((t3-t2)/(double)CLOCKS_PER_SEC)<<" seconds"<<endl;
+	
+	cout<<"#command=\""<<argv[0];
+	for(int i=1;i<argc;i++){
+		cout<<" "<<argv[i];
+	}
+	
+	cout<<"\""<<endl;
+	cout<<"#foreground="<<fgfilename<<endl;
+	cout<<"#background="<<bgfilename<<endl;
+	cout<<"#k="<<k<<endl;
+	cout<<"#howmanyToFind="<<howmanyToFind<<endl;
+
+	
 	theFinder.printStat(cout);
 	cerr<<"finding kmers..."<<endl;
 	cout<<"kmer\tenrichment\tnormalizedEnrichment\tfgInstances\tbgInstances"<<endl;
@@ -606,8 +626,13 @@ int main(int argc,char**argv){
 			break;
 		cout<<nextKmer->kmerSeq<<"\t"<<nextKmer->enrichment()<<"\t"<<nextKmer->normalizedEnrichment(theFinder.foregroundTotalKmerCount,theFinder.backgroundTotalKmerCount)<<"\t"<<nextKmer->fgInstances()<<"\t"<<nextKmer->backgroundCount<<endl;
 	}
-	
 	clock_t t4=clock();
+	cout<<"#CPUTimeReadForeground="<<((t2-t1)/(double)CLOCKS_PER_SEC)<<"s"<<endl;
+	cout<<"#CPUTimeReadBackground="<<((t3-t2)/(double)CLOCKS_PER_SEC)<<"s"<<endl;
+	cout<<"#CPUTimeFindKmers="<<((t4-t3)/(double)CLOCKS_PER_SEC)<<"s"<<endl;
+	cout<<"#CPUTimeTotal="<<((t4-t1)/(double)CLOCKS_PER_SEC)<<"s"<<endl;
+	
+	
 	cerr<<"done finding kmers CPU time used="<<((t4-t3)/(double)CLOCKS_PER_SEC)<<" seconds"<<endl;
 	cerr<<"done total CPU time used="<<((t4-t1)/(double)CLOCKS_PER_SEC)<<" seconds"<<endl;
 	return 0;
