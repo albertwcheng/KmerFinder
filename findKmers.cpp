@@ -254,8 +254,9 @@ public:
 	string kmerSeq;
 	multiset<SeqRecord*> seqs; //this is the pointer to the seqs that have this kmer
 	uint64 backgroundCount; //this will store the number of times bacskground has this kmer
+	uint64 unsubtractedFgCount;
 	
-	kmerRecord(const string& _kmerSeq):kmerSeq(_kmerSeq),backgroundCount(0){
+	kmerRecord(const string& _kmerSeq):kmerSeq(_kmerSeq),backgroundCount(0),unsubtractedFgCount(0){
 		
 	}
 	
@@ -263,7 +264,29 @@ public:
 		return this->seqs.size();
 	}
 	
+	inline uint64 unsubtractedFgInstances() const{
+		return unsubtractedFgCount;
+	}
 	
+	inline double unsubtractedEnrichment() const{
+#ifdef REQUIRE_BACKGROUND_PRESENCE
+		return double(this->unsubtractedFgInstances())/backgroundCount;
+#else		
+		return double(this->unsubtractedFgInstances())/(backgroundCount+1); //background plus 1 to avoid division by zero
+		//no need to care about the totalkmers in foreground and background becoz they are the same for all kmers. argmax not important to know these numbers
+#endif
+		
+	}
+	
+	inline double unsubtractedNormalizedEnrichment(double totalFgKmers,double totalBgKmers) const{
+#ifdef REQUIRE_BACKGROUND_PRESENCE
+		return (double(this->unsubtractedFgInstances())/totalFgKmers)/(double(backgroundCount)/totalBgKmers);
+#else
+		return (double(this->unsubtractedFgInstances())/totalFgKmers)/(double(backgroundCount+1)/totalBgKmers);
+#endif
+		
+		
+	}	
 	inline double enrichment() const{
 		
 	#ifdef REQUIRE_BACKGROUND_PRESENCE
@@ -298,9 +321,12 @@ class SeqRecord
 {
 public:
 	set<kmerRecord*> kmersFromThisSeq;
-	inline void disappearFromKmers(){
+	inline void disappearFromKmersExcept(kmerRecord* except){
 		for(set<kmerRecord*>::iterator i=kmersFromThisSeq.begin();i!=kmersFromThisSeq.end();i++){
-			(*i)->seqs.erase(this);
+			kmerRecord* thisKmer=(*i);
+			if(thisKmer!=except){
+				(*i)->seqs.erase(this);
+			}
 		}
 	}
 	
@@ -318,7 +344,7 @@ public:
 void kmerRecord::removeSequencesContainingThisKmer(){
 	for(multiset<SeqRecord*>::iterator i=seqs.begin();i!=seqs.end();i++){
 		SeqRecord* thisSeq=(*i);
-		thisSeq->disappearFromKmers();
+		thisSeq->disappearFromKmersExcept(this);
 	}
 	
 }
@@ -393,7 +419,9 @@ public:
 		//now put the kmer into list
 		for(map<string,SmartPtr<kmerRecord> >::iterator i=kmerInitStruct.begin();i!=kmerInitStruct.end();i++)
 		{
+			i->second->unsubtractedFgCount=i->second->seqs.size();
 			kmers.push_back(i->second);
+			//and also set the unsubtracted foreground
 		}
 		
 
@@ -429,7 +457,7 @@ public:
 			delete removee;//now can remove this from member
 		}
 		
-		cerr<<toRemove.size()<<"unique backgroundcount=0 kmers removed"<<endl;
+		cerr<<toRemove.size()<<" unique backgroundcount=0 kmers removed"<<endl;
 		
 		#endif
 		
@@ -443,6 +471,7 @@ public:
 		
 		kmers.sort(); //sort the linked list by enrichment score
 		kmerRecord*result=kmers.back();
+		result->removeSequencesContainingThisKmer();
 		kmers.pop_back();
 		return result;
 	}
@@ -614,7 +643,7 @@ int main(int argc,char**argv){
 	
 	theFinder.printStat(cout);
 	cerr<<"finding kmers..."<<endl;
-	cout<<"kmer\tenrichment\tnormalizedEnrichment\tfgInstances\tbgInstances"<<endl;
+	cout<<"kmer\tenrichment\tnormalizedEnrichment\tfgInstances\tbgInstances\tunsubtractedFgInstances\tunsubtractedEnrichment\tunsubtractedNormalizedEnrichment"<<endl;
 	
 	if(howmanyToFind<1){
 		howmanyToFind=theFinder.numUniqKmers();
@@ -624,7 +653,7 @@ int main(int argc,char**argv){
 		kmerRecord* nextKmer=theFinder.getNextEnrichedKmers();
 		if(!nextKmer)
 			break;
-		cout<<nextKmer->kmerSeq<<"\t"<<nextKmer->enrichment()<<"\t"<<nextKmer->normalizedEnrichment(theFinder.foregroundTotalKmerCount,theFinder.backgroundTotalKmerCount)<<"\t"<<nextKmer->fgInstances()<<"\t"<<nextKmer->backgroundCount<<endl;
+		cout<<nextKmer->kmerSeq<<"\t"<<nextKmer->enrichment()<<"\t"<<nextKmer->normalizedEnrichment(theFinder.foregroundTotalKmerCount,theFinder.backgroundTotalKmerCount)<<"\t"<<nextKmer->fgInstances()<<"\t"<<nextKmer->backgroundCount<<"\t"<<nextKmer->unsubtractedFgInstances()<<"\t"<<nextKmer->unsubtractedEnrichment()<<"\t"<<nextKmer->unsubtractedNormalizedEnrichment(theFinder.foregroundTotalKmerCount,theFinder.backgroundTotalKmerCount)<<endl;
 	}
 	clock_t t4=clock();
 	cout<<"#CPUTimeReadForeground="<<((t2-t1)/(double)CLOCKS_PER_SEC)<<"s"<<endl;
