@@ -465,14 +465,21 @@ public:
 		kmerInitStruct.clear();		
 	}
 	
-	kmerRecord* getNextEnrichedKmers(){
+	kmerRecord* getNextEnrichedKmers(bool printCPUTimeUsed=false){
 		if(kmers.size()==0)
 			return NULL;
 		
+		clock_t t1=clock();
 		kmers.sort(); //sort the linked list by enrichment score
+		clock_t t2=clock();
 		kmerRecord*result=kmers.back();
 		result->removeSequencesContainingThisKmer();
+		clock_t t3=clock();
 		kmers.pop_back();
+		
+		if(printCPUTimeUsed){
+			cerr<<"\tfound kmer "<<result->kmerSeq<<" with occurences:"<<result->fgInstances()<<"; time invested:"<<((t2-t1)/(double)CLOCKS_PER_SEC)<<"s(Sorting) "<<((t3-t2)/(double)CLOCKS_PER_SEC)<<"s(Removing sequences) "<<((t3-t1)/(double)CLOCKS_PER_SEC)<<"s(Total)"<<endl;
+		}
 		return result;
 	}
 	
@@ -650,7 +657,7 @@ int main(int argc,char**argv){
 	}
 	
 	for(int i=0;i<howmanyToFind;i++){
-		kmerRecord* nextKmer=theFinder.getNextEnrichedKmers();
+		kmerRecord* nextKmer=theFinder.getNextEnrichedKmers(true);
 		if(!nextKmer)
 			break;
 		cout<<nextKmer->kmerSeq<<"\t"<<nextKmer->enrichment()<<"\t"<<nextKmer->normalizedEnrichment(theFinder.foregroundTotalKmerCount,theFinder.backgroundTotalKmerCount)<<"\t"<<nextKmer->fgInstances()<<"\t"<<nextKmer->backgroundCount<<"\t"<<nextKmer->unsubtractedFgInstances()<<"\t"<<nextKmer->unsubtractedEnrichment()<<"\t"<<nextKmer->unsubtractedNormalizedEnrichment(theFinder.foregroundTotalKmerCount,theFinder.backgroundTotalKmerCount)<<endl;

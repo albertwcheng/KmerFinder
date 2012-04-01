@@ -1,1 +1,1 @@
-g++ -o findKmers findKmers.cpp
+g++ -O3 -o findKmers findKmers.cpp
