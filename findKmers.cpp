@@ -101,80 +101,11 @@ public:
 
 
 
-class SimpleFastxReader
-{
-	
-public:
-	virtual void onNewSeq(const string& name,const string& seq,const string& quals)=0;
-	
-	inline void readFile(const string& filename){
-		ifstream fin(filename.c_str());
-		string name;
-		string seq;
-		string quals;
-		string *seqFeedDest=NULL; //point to either seq or quals for inserting into either one of them
-		char seqDirective='>';
-		bool firstSeq=true;
-		
-		while(fin.good()){
-			string line;
-			getline(fin,line); 
-			//cerr<<line<<endl;
-			if(line.length()==0)
-				continue;
-			switch(line[0]){
-				case '@': //a start of new seq
-				case '>':
-					
-					if(firstSeq){
-						seqDirective=line[0];
-						firstSeq=false;
-					}else if(line[0]==seqDirective){
-						if(seq.length()>0){
-							this->onNewSeq(name,seq,quals);
-						}
-						name=line.substr(1); //to the end
-						seq="";
-						quals="";
-						seqFeedDest=&seq;
-					}else{
-						//this is potentially ">" and is within quals
-						(*seqFeedDest)+=line;
-					}
-					
-					
-					break;
-				
-				case '+':
-					quals="";
-					seqFeedDest=&quals;
-					break;
-				
-				default:
-					if(seqFeedDest){
-						(*seqFeedDest)+=line;
-					}
-					break;
-				
-			}
-		}
-		
-		if(seq.length()>0){
-			this->onNewSeq(name,seq,quals);
-		}
-		
-		fin.close();
-	}
-
-};
-
-
-
 class SimpleFastqReader
 {
 	
 public:
-	virtual void onNewSeq(const string& name,const string& seq,const string& quals)=0;
+	virtual bool onNewSeq(const string& name,const string& seq,const string& quals)=0;
 	
 	inline void readFile(const string& filename){
 		ifstream fin(filename.c_str());
@@ -185,11 +116,14 @@ public:
 		uint64 reallino=0;
 		uint64 lino=0;
 		
-		while(fin.good()){
+		bool continuetoread=true;
+		
+		while(continuetoread && fin.good()){
 			string line;
 			getline(fin,line); 
 			
 			lino++;
+			
 			
 			if(line.length()==0)
 				continue;
@@ -204,8 +138,9 @@ public:
 					}
 					
 					if(seq.length()>0){
-						this->onNewSeq(name,seq,quals);
+						continuetoread=this->onNewSeq(name,seq,quals);
 					}
+					
 					
 					name=line.substr(1); //to the end
 					seq="";
@@ -372,9 +307,11 @@ public:
 	string backgroundFilename;
 	int k; //wordsize
 	
+	uint64 fgseqtoread;
+	uint64 bgseqtoread;
+	
 	uint64 foregroundTotalKmerCount;
 	uint64 backgroundTotalKmerCount;
-	
 	
 	uint64 numSeqForeground;
 	uint64 numSeqBackground;
@@ -382,7 +319,7 @@ public:
 	map<string,SmartPtr<kmerRecord> > kmerInitStruct; //for storing kmers while reading file initially
 	
 	
-	kmerFinder(int _k):mode(READ_BACKGROUND),k(_k),foregroundTotalKmerCount(0),backgroundTotalKmerCount(0),numSeqForeground(0),numSeqBackground(0){
+	kmerFinder(int _k,uint64 _fgseqtoread,uint64 _bgseqtoread):mode(READ_BACKGROUND),k(_k),foregroundTotalKmerCount(0),backgroundTotalKmerCount(0),numSeqForeground(0),numSeqBackground(0),fgseqtoread(_fgseqtoread),bgseqtoread(_bgseqtoread){
 		
 	}
 	
@@ -483,7 +420,7 @@ public:
 		return result;
 	}
 	
-	void onNewSeq(const string&name,const string&seq,const string&quals){
+	bool onNewSeq(const string&name,const string&seq,const string&quals){
 		if(mode==READ_FOREGROUND){
 			
 			numSeqForeground++;
@@ -523,6 +460,8 @@ public:
 				
 			}
 			
+			return (fgseqtoread==0 || numSeqForeground<fgseqtoread);
+			
 			
 		}else {
 			
@@ -554,7 +493,7 @@ public:
 			}		
 			
 			
-			
+			return (bgseqtoread==0 || numSeqBackground<bgseqtoread);
 			
 		
 		}
@@ -582,18 +521,23 @@ public:
 	
 };
 
-class TestSimpleFastxReader:public SimpleFastqReader{
+class TestSimpleFastqReader:public SimpleFastqReader{
 public:
-	void onNewSeq(const string& name,const string& seq,const string& quals)
+	int seqcount;
+	TestSimpleFastqReader():seqcount(0){}
+	bool onNewSeq(const string& name,const string& seq,const string& quals)
 	{
-		cerr<<"got new seq! name="<<name<<" seq="<<seq<<" qual="<<quals<<endl;
+		seqcount++;
+		cerr<<seqcount<<":got new seq! name="<<name<<" seq="<<seq<<" qual="<<quals<<endl;
+		
+		return seqcount<10; //read only ten sequences
 	}
 };
 
 int main(int argc,char**argv){
 	
 	
-	/*TestSimpleFastxReader f;
+	/*TestSimpleFastqReader f;
 	f.readFile(argv[1]);
 	return 0;*/
 	
@@ -605,19 +549,23 @@ int main(int argc,char**argv){
 	cerr<<"REQUIRE_BACKGROUND_PRESENCE=OFF)"<<endl;
 #endif
 	
-	if(argc<5){ 
-		cerr<<"Usage:" <<argv[0]<<" <fgfilename> <bgfilename> <k> <howmanyToFind>"<<endl;
+	if(argc<7){ 
+		cerr<<"Usage:" <<argv[0]<<" <fgfilename> <howmanyfgseqtoread> <bgfilename> <howmanybgseqtoread> <k> <howmanyToFind>"<<endl;
 		cerr<<"Description: find <howmanyToFind> top enriched <k>-mers from HT-SELEX experiments using <fgfilename> and <bgfilename> fastq files assuming there's only one motif per sequence"<<endl;
+		cerr<<"Specify <howmanyfgseqtoread> or <howmanybgseqtoread>=0 to read all"<<endl;
 		cerr<<"Specify <howmanyToFind>=0 to print all kmers"<<endl;
 		return 1;
 	}
 	
-	int k=atoi(argv[3]);
-	int howmanyToFind=atoi(argv[4]);
-	string fgfilename=argv[1];
-	string bgfilename=argv[2];
 	
-	kmerFinder theFinder(k);
+	string fgfilename=argv[1];
+	int fgseqtoread=atoi(argv[2]);
+	string bgfilename=argv[3];
+	int bgseqtoread=atoi(argv[4]);
+	int k=atoi(argv[5]);
+	int howmanyToFind=atoi(argv[6]);
+	
+	kmerFinder theFinder(k,fgseqtoread,bgseqtoread);
 	
 	cerr<<"command:"<<argv[0];
 	for(int i=1;i<argc;i++){

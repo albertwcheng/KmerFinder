@@ -6,6 +6,33 @@ bash make.sh
 
 === RUN ===
 
-Usage:./findKmers <fgfilename> <bgfilename> <k> <howmanyToFind>
+Step One: find (enriched) k-mers
+
+Usage:findKmers <fgfilename> <howmanyfgseqtoread> <bgfilename> <howmanybgseqtoread> <k> <howmanyToFind>
 Description: find <howmanyToFind> top enriched <k>-mers from HT-SELEX experiments using <fgfilename> and <bgfilename> fastq files assuming there's only one motif per sequence
+Specify <howmanyfgseqtoread> or <howmanybgseqtoread>=0 to read all
 Specify <howmanyToFind>=0 to print all kmers
+
+e.g., 
+
+./findKmers fg.fastq 1000000 bg.fastq 1000000 6 0 > 1000000_6_0.result.txt 2> 1000000_6_0.stderr.txt
+
+
+Step Two: construct PWM (row matrix)
+
+Usage: ./constructSimplePWM.py kmerFile colKmer colScore seed
+
+e.g., 
+
+./constructSimplePWM.py 1000000_6_0.result.txt 1 3 ATACAG > 1000000_6_0.result.ATACAG.pwm.rowmat
+
+Step Three: convert row matrix format to format recognized by tinyray weblogo
+
+Usage: ./ToTinyRayPWMFormat.sh RowMatrixFile outTinyRayPWMFile
+Description: Convert the row matrix file from constructSimplePWM.py to the PWM format used by http://demo.tinyray.com/weblogo
+
+./ToTinyRayPWMFormat.sh 1000000_6_0.result.ATACAG.pwm.rowmat 1000000_6_0.result.ATACAG.pwm.tinyray
+
+cat 1000000_6_0.result.ATACAG.pwm.tinyray
+
+now paste the content of the cat output to the weblogo interface at http://demo.tinyray.com/weblogo
