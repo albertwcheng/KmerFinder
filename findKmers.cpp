@@ -31,7 +31,13 @@ using namespace std;
 
 
 #define REQUIRE_BACKGROUND_PRESENCE
+//#define USE_MULTISET
 
+#ifdef USE_MULTISET
+#define setType multiset
+#else
+#define setType set
+#endif 
 
 #define uint64 uint64_t
 
@@ -185,13 +191,15 @@ class kmerFinder;
 class kmerRecord
 {
 public:
-	//kmerFinder* parent;
+
 	string kmerSeq;
-	multiset<SeqRecord*> seqs; //this is the pointer to the seqs that have this kmer
-	uint64 backgroundCount; //this will store the number of times bacskground has this kmer
+	setType<SeqRecord*> seqs; //this is the pointer to the seqs that have this kmer 
+	setType<SeqRecord*> bgseqs;
+	
+	uint64 unsubtractedBgCount;
 	uint64 unsubtractedFgCount;
 	
-	kmerRecord(const string& _kmerSeq):kmerSeq(_kmerSeq),backgroundCount(0),unsubtractedFgCount(0){
+	kmerRecord(const string& _kmerSeq):kmerSeq(_kmerSeq),unsubtractedBgCount(0),unsubtractedFgCount(0){
 		
 	}
 	
@@ -199,25 +207,32 @@ public:
 		return this->seqs.size();
 	}
 	
+	inline uint64 bgInstances() const{
+		return this->bgseqs.size();	
+	}
+	
 	inline uint64 unsubtractedFgInstances() const{
 		return unsubtractedFgCount;
 	}
 	
+	inline uint64 unsubtractedBgInstances() const{
+		return unsubtractedBgCount;	
+	}
+	
 	inline double unsubtractedEnrichment() const{
 #ifdef REQUIRE_BACKGROUND_PRESENCE
-		return double(this->unsubtractedFgInstances())/backgroundCount;
+		return double(this->unsubtractedFgInstances())/unsubtractedBgInstances();
 #else		
-		return double(this->unsubtractedFgInstances())/(backgroundCount+1); //background plus 1 to avoid division by zero
+		return double(this->unsubtractedFgInstances())/(unsubtractedBgInstances()+1); //background plus 1 to avoid division by zero
 		//no need to care about the totalkmers in foreground and background becoz they are the same for all kmers. argmax not important to know these numbers
 #endif
-		
 	}
 	
 	inline double unsubtractedNormalizedEnrichment(double totalFgKmers,double totalBgKmers) const{
 #ifdef REQUIRE_BACKGROUND_PRESENCE
-		return (double(this->unsubtractedFgInstances())/totalFgKmers)/(double(backgroundCount)/totalBgKmers);
+		return (double(this->unsubtractedFgInstances())/totalFgKmers)/(double(unsubtractedBgInstances())/totalBgKmers);
 #else
-		return (double(this->unsubtractedFgInstances())/totalFgKmers)/(double(backgroundCount+1)/totalBgKmers);
+		return (double(this->unsubtractedFgInstances())/totalFgKmers)/(double(unsubtractedBgInstances()+1)/totalBgKmers);
 #endif
 		
 		
@@ -225,9 +240,9 @@ public:
 	inline double enrichment() const{
 		
 	#ifdef REQUIRE_BACKGROUND_PRESENCE
-		return double(this->seqs.size())/backgroundCount;
+		return double(this->seqs.size())/this->bgseqs.size();
 	#else		
-		return double(this->seqs.size())/(backgroundCount+1); //background plus 1 to avoid division by zero
+		return double(this->seqs.size())/(this->bgseqs.size()+1); //background plus 1 to avoid division by zero
 		//no need to care about the totalkmers in foreground and background becoz they are the same for all kmers. argmax not important to know these numbers
 	#endif
 		
@@ -235,11 +250,19 @@ public:
 	
 	inline double normalizedEnrichment(double totalFgKmers,double totalBgKmers) const{
 	#ifdef REQUIRE_BACKGROUND_PRESENCE
-		return (double(this->seqs.size())/totalFgKmers)/(double(backgroundCount)/totalBgKmers);
+		return (double(this->seqs.size())/totalFgKmers)/(double(this->bgseqs.size())/totalBgKmers);
 	#else
-		return (double(this->seqs.size())/totalFgKmers)/(double(backgroundCount+1)/totalBgKmers);
+		return (double(this->seqs.size())/totalFgKmers)/(double(this->bgseqs.size()+1)/totalBgKmers);
 	#endif
 		
+	}
+	
+	inline double normalizedEnrichmentByNumSeqs(double totalFgSeq,double totalBgSeq) const{
+	#ifdef REQUIRE_BACKGROUND_PRESENCE
+		return (double(this->seqs.size())/totalFgSeq)/(double(this->bgseqs.size())/totalBgSeq);
+	#else
+		return (double(this->seqs.size())/totalFgSeq)/(double(this->bgseqs.size()+1)/totalBgSeq);
+	#endif		
 	}
 	
 	inline bool operator < (const kmerRecord& right) const{
@@ -264,11 +287,24 @@ public:
 			}
 		}
 	}
-	
+	inline void bgdisappearFromKmersExcept(kmerRecord* except){
+		for(set<kmerRecord*>::iterator i=kmersFromThisSeq.begin();i!=kmersFromThisSeq.end();i++){
+			kmerRecord* thisKmer=(*i);
+			if(thisKmer!=except){
+				(*i)->bgseqs.erase(this);
+			}
+		}
+	}	
 	void registerKmer(kmerRecord* _kmer){
 		_kmer->seqs.insert(this);
 		kmersFromThisSeq.insert(_kmer);
 	}
+	
+	void registerBgKmer(kmerRecord* _kmer){
+		_kmer->bgseqs.insert(this);
+		kmersFromThisSeq.insert(_kmer);	
+	}
+	
 	
 	void unregisterKmer(kmerRecord* _kmer){
 		kmersFromThisSeq.erase(_kmer);
@@ -277,15 +313,25 @@ public:
 
 
 void kmerRecord::removeSequencesContainingThisKmer(){
-	for(multiset<SeqRecord*>::iterator i=seqs.begin();i!=seqs.end();i++){
+	for(setType<SeqRecord*>::iterator i=seqs.begin();i!=seqs.end();i++){
 		SeqRecord* thisSeq=(*i);
 		thisSeq->disappearFromKmersExcept(this);
+	}
+	
+	for(setType<SeqRecord*>::iterator i=bgseqs.begin();i!=bgseqs.end();i++){
+		SeqRecord* thisSeq=(*i);
+		thisSeq->bgdisappearFromKmersExcept(this);	
 	}
 	
 }
 
 void kmerRecord::kmerDisappearFromSeqs(){
-	for(multiset<SeqRecord*>::iterator i=seqs.begin();i!=seqs.end();i++){
+	for(setType<SeqRecord*>::iterator i=seqs.begin();i!=seqs.end();i++){
+		SeqRecord* thisSeq=(*i);
+		thisSeq->unregisterKmer(this);
+	}
+	
+	for(setType<SeqRecord*>::iterator i=bgseqs.begin();i!=bgseqs.end();i++){
 		SeqRecord* thisSeq=(*i);
 		thisSeq->unregisterKmer(this);
 	}
@@ -301,7 +347,11 @@ class kmerFinder:public SimpleFastqReader
 {
 public:
 	list<SmartPtr<kmerRecord> > kmers;
+	vector<kmerRecord*> bgOnlyKmers; //for keeping track the memory for those background only kmer (for destructor)
+	
 	vector<SeqRecord*> seqs;
+	vector<SeqRecord*> bgseqs;
+	
 	int mode;
 	string foregroundFilename;
 	string backgroundFilename;
@@ -353,12 +403,11 @@ public:
 		mode=READ_FOREGROUND;
 		foregroundFilename=filename;
 		this->readFile(filename);
+		
 		//now put the kmer into list
 		for(map<string,SmartPtr<kmerRecord> >::iterator i=kmerInitStruct.begin();i!=kmerInitStruct.end();i++)
 		{
-			i->second->unsubtractedFgCount=i->second->seqs.size();
 			kmers.push_back(i->second);
-			//and also set the unsubtracted foreground
 		}
 		
 
@@ -378,10 +427,10 @@ public:
 		vector<list<SmartPtr<kmerRecord> >::iterator> toRemove;
 		
 		for(list<SmartPtr<kmerRecord> >::iterator i=kmers.begin();i!=kmers.end();i++){
-			if((*i)->backgroundCount<1){
+			if((*i)->bgInstances()<1){
 				toRemove.push_back(i);
-			//}else{
-				//cerr<<"bigger"<<endl;
+			}else if((*i)->fgInstances()<1){
+				bgOnlyKmers.push_back(*i);
 			}
 		}
 		
@@ -389,9 +438,9 @@ public:
 			list<SmartPtr<kmerRecord> >::iterator removeeI=*i;
 			kmerRecord* removee=*removeeI;
 			removee->kmerDisappearFromSeqs();
-			foregroundTotalKmerCount-=removee->fgInstances(); //update foreground total kmer count
+			
 			kmers.erase(removeeI);
-			delete removee;//now can remove this from member
+			delete removee;//now can remove this from memory
 		}
 		
 		cerr<<toRemove.size()<<" unique backgroundcount=0 kmers removed"<<endl;
@@ -399,7 +448,18 @@ public:
 		#endif
 		
 		//now we can remove the map kmerInitStruct to save space
-		kmerInitStruct.clear();		
+		kmerInitStruct.clear();	
+		
+		//now calculate foregroundTotalKmerCount and backgroundTotalKmerCount
+		for(list<SmartPtr<kmerRecord> >::iterator i=kmers.begin();i!=kmers.end();i++){
+			
+			(*i)->unsubtractedFgCount=(*i)->fgInstances();
+			foregroundTotalKmerCount+=(*i)->fgInstances();
+			(*i)->unsubtractedBgCount=(*i)->bgInstances();
+			backgroundTotalKmerCount+=(*i)->bgInstances();
+		}
+
+			
 	}
 	
 	kmerRecord* getNextEnrichedKmers(bool printCPUTimeUsed=false){
@@ -441,7 +501,7 @@ public:
 					continue;
 				}
 				
-				this->foregroundTotalKmerCount++;
+				//this->foregroundTotalKmerCount++;
 				
 				//now insert this kmer
 				SmartPtr<kmerRecord> thisKmer;
@@ -467,6 +527,10 @@ public:
 			
 			numSeqBackground++;
 			
+			SeqRecord *thisSeqRecord=new SeqRecord;
+			
+			bgseqs.push_back(thisSeqRecord);
+			
 			if(numSeqBackground%100000==1){
 				cerr<<"\treading seq\t"<<numSeqBackground<<endl;
 			}
@@ -478,16 +542,18 @@ public:
 					continue;
 				}
 				
-				this->backgroundTotalKmerCount++;
+				//this->backgroundTotalKmerCount++;
 				
 				SmartPtr<kmerRecord> thisKmer;
 				map<string,SmartPtr<kmerRecord> >::iterator kmerI=kmerInitStruct.find(thisKmerSeq);
-				if(kmerI!=kmerInitStruct.end()){
-					//only when this kmer is present in foreground is it counted
-					
+				if(kmerI==kmerInitStruct.end()){
+					thisKmer=new kmerRecord(thisKmerSeq);
+					kmerInitStruct.insert(map<string,SmartPtr<kmerRecord> >::value_type(thisKmerSeq,thisKmer));
+				}else {
 					thisKmer=kmerI->second;
-					thisKmer->backgroundCount++;
 				}
+				
+				thisSeqRecord->registerBgKmer(thisKmer);
 				
 				
 			}		
@@ -506,6 +572,12 @@ public:
 		}
 		for(vector<SeqRecord*>::iterator i=seqs.begin();i!=seqs.end();i++){
 			delete (*i);
+		}
+		for(vector<SeqRecord*>::iterator i=bgseqs.begin();i!=bgseqs.end();i++){
+			delete (*i);
+		}
+		for(vector<kmerRecord*>::iterator i=bgOnlyKmers.begin();i!=bgOnlyKmers.end();i++){
+			delete (*i);	
 		}
 	}
 	
@@ -598,7 +670,9 @@ int main(int argc,char**argv){
 	
 	theFinder.printStat(cout);
 	cerr<<"finding kmers..."<<endl;
-	cout<<"kmer\tenrichment\tnormalizedEnrichment\tfgInstances\tbgInstances\tunsubtractedFgInstances\tunsubtractedEnrichment\tunsubtractedNormalizedEnrichment"<<endl;
+	
+	cout<<"kmer\tenrichment\tcontrol_count\texperim_count"<<endl;
+	//cout<<"kmer\tenrichment\tnormalizedEnrichment\tfgInstances\tbgInstances\tunsubtractedFgInstances\tunsubtractedBgInstances\tunsubtractedEnrichment\tunsubtractedNormalizedEnrichment"<<endl;
 	
 	if(howmanyToFind<1){
 		howmanyToFind=theFinder.numUniqKmers();
@@ -608,7 +682,8 @@ int main(int argc,char**argv){
 		kmerRecord* nextKmer=theFinder.getNextEnrichedKmers(true);
 		if(!nextKmer)
 			break;
-		cout<<nextKmer->kmerSeq<<"\t"<<nextKmer->enrichment()<<"\t"<<nextKmer->normalizedEnrichment(theFinder.foregroundTotalKmerCount,theFinder.backgroundTotalKmerCount)<<"\t"<<nextKmer->fgInstances()<<"\t"<<nextKmer->backgroundCount<<"\t"<<nextKmer->unsubtractedFgInstances()<<"\t"<<nextKmer->unsubtractedEnrichment()<<"\t"<<nextKmer->unsubtractedNormalizedEnrichment(theFinder.foregroundTotalKmerCount,theFinder.backgroundTotalKmerCount)<<endl;
+		//cout<<nextKmer->kmerSeq<<"\t"<<nextKmer->enrichment()<<"\t"<<nextKmer->normalizedEnrichment(theFinder.foregroundTotalKmerCount,theFinder.backgroundTotalKmerCount)<<"\t"<<nextKmer->fgInstances()<<"\t"<<nextKmer->bgInstances()<<"\t"<<nextKmer->unsubtractedFgInstances()<<"\t"<<nextKmer->unsubtractedBgInstances()<<"\t"<<nextKmer->unsubtractedEnrichment()<<"\t"<<nextKmer->unsubtractedNormalizedEnrichment(theFinder.foregroundTotalKmerCount,theFinder.backgroundTotalKmerCount)<<endl;
+		cout<<nextKmer->kmerSeq<<"\t"<<nextKmer->enrichment()<<"\t"<<nextKmer->bgInstances()<<"\t"<<nextKmer->fgInstances()<<endl;
 	}
 	clock_t t4=clock();
 	cout<<"#CPUTimeReadForeground="<<((t2-t1)/(double)CLOCKS_PER_SEC)<<"s"<<endl;
