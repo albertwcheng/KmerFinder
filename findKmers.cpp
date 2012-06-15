@@ -671,8 +671,8 @@ int main(int argc,char**argv){
 	theFinder.printStat(cout);
 	cerr<<"finding kmers..."<<endl;
 	
-	//cout<<"kmer\tenrichment\tcontrol_count\texperim_count"<<endl;
-	cout<<"kmer\tenrichment\tnormalizedEnrichment\tfgInstances\tbgInstances\tunsubtractedFgInstances\tunsubtractedBgInstances\tunsubtractedEnrichment\tunsubtractedNormalizedEnrichment"<<endl;
+	cout<<"kmer\tenrichment\tcontrol_count\texperim_count"<<endl;
+	//cout<<"kmer\tenrichment\tnormalizedEnrichment\tfgInstances\tbgInstances\tunsubtractedFgInstances\tunsubtractedBgInstances\tunsubtractedEnrichment\tunsubtractedNormalizedEnrichment"<<endl;
 	
 	if(howmanyToFind<1){
 		howmanyToFind=theFinder.numUniqKmers();
@@ -682,8 +682,8 @@ int main(int argc,char**argv){
 		kmerRecord* nextKmer=theFinder.getNextEnrichedKmers(true);
 		if(!nextKmer)
 			break;
-		cout<<nextKmer->kmerSeq<<"\t"<<nextKmer->enrichment()<<"\t"<<nextKmer->normalizedEnrichment(theFinder.foregroundTotalKmerCount,theFinder.backgroundTotalKmerCount)<<"\t"<<nextKmer->fgInstances()<<"\t"<<nextKmer->bgInstances()<<"\t"<<nextKmer->unsubtractedFgInstances()<<"\t"<<nextKmer->unsubtractedBgInstances()<<"\t"<<nextKmer->unsubtractedEnrichment()<<"\t"<<nextKmer->unsubtractedNormalizedEnrichment(theFinder.foregroundTotalKmerCount,theFinder.backgroundTotalKmerCount)<<endl;
-		//cout<<nextKmer->kmerSeq<<"\t"<<nextKmer->enrichment()<<"\t"<<nextKmer->bgInstances()<<"\t"<<nextKmer->fgInstances()<<endl;
+		//cout<<nextKmer->kmerSeq<<"\t"<<nextKmer->enrichment()<<"\t"<<nextKmer->normalizedEnrichment(theFinder.foregroundTotalKmerCount,theFinder.backgroundTotalKmerCount)<<"\t"<<nextKmer->fgInstances()<<"\t"<<nextKmer->bgInstances()<<"\t"<<nextKmer->unsubtractedFgInstances()<<"\t"<<nextKmer->unsubtractedBgInstances()<<"\t"<<nextKmer->unsubtractedEnrichment()<<"\t"<<nextKmer->unsubtractedNormalizedEnrichment(theFinder.foregroundTotalKmerCount,theFinder.backgroundTotalKmerCount)<<endl;
+		cout<<nextKmer->kmerSeq<<"\t"<<nextKmer->enrichment()<<"\t"<<nextKmer->bgInstances()<<"\t"<<nextKmer->fgInstances()<<endl;
 	}
 	clock_t t4=clock();
 	cout<<"#CPUTimeReadForeground="<<((t2-t1)/(double)CLOCKS_PER_SEC)<<"s"<<endl;
