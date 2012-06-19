@@ -18,7 +18,7 @@ echo "T: 0.25" >> $tfile1
 
 tfile2=`tempfile`
 tfile3=`tempfile`
-cuta.py -f1,3,2,4 $RowMatrixFile > $tfile2
+cuta.py --ignore-truncated-rows -f1,3,2,4 $RowMatrixFile > $tfile2
 matrixTranspose.py $tfile2 > $tfile3
 
 paste $tfile1 $tfile3 > $outTinyRayPWMFile
