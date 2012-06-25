@@ -16,6 +16,13 @@ def toStrList(L):
 def replaceSeedAtPosWith(seed,p,x):
 	return seed[:p]+x+seed[p+1:]
 
+def isSeq(s):
+	for x in s:
+		if x.upper() not in ['A','C','G','T','U']:
+			return False
+		
+	return True
+
 def normalizeTo1(L):
 	#print >> stderr,L
 	sumL=sum(L)
@@ -53,6 +60,10 @@ if __name__=='__main__':
 		fields=lin.rstrip("\r\n").split("\t")
 		#print >> stderr,fields,colScore
 		thisKmer=fields[colKmer]
+		
+		if not isSeq(thisKmer):
+			continue
+		
 		thisScore=float(fields[colScore])
 		kmerScores[thisKmer]=thisScore
 		k=len(thisKmer)
