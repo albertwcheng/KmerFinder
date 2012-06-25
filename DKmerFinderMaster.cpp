@@ -112,7 +112,7 @@ public:
 	
 	DKmerFinder(string _outDir,string _name,int _delayTimeInSeconds,int _k,string _fgSlaves,string _bgSlaves,int _topN):
 		FileIPMLoop(_outDir+IPMSubFolder,_name,_delayTimeInSeconds),outDir(_outDir),
-		k(_k),cycle(1),totalKmerInstances(0),totalNumSeqs(0),respondents(0),topN(_topN),hirespondents(0);
+		k(_k),cycle(1),totalKmerInstances(0),totalNumSeqs(0),respondents(0),topN(_topN),hirespondents(0),tick(0)
 	{
 		StringUtil::split(_fgSlaves,",",fgSlaves);
 		StringUtil::split(_bgSlaves,",",bgSlaves);
@@ -238,7 +238,7 @@ public:
 			}else if(splits[1]=="KmerCountUpdate"){
 				
 				if(msgCycleNumber!=cycle){
-					cerr<<"Inconsistent cycle number from slave "<<sender<<endl;
+					cerr<<"Inconsistent cycle number from slave "<<sender<<" msgCycleNumber="<<msgCycleNumber<<" cycleHere="<<cycle<<endl;
 					cerr<<"Abort"<<endl;
 					cerr<<"Sending all slaves !TERMINATE"<<endl;
 					terminateAllSlaves();

@@ -232,6 +232,7 @@ public:
 			
 		if(sender==MASTERID){
 			if(msgs.size()>1){
+				cerr<<"msg size > 1"<<endl;
 				sendMessage(MASTERID,"Error\tmsg size > 1");
 				terminate(); //fatal error	
 			}else{
@@ -239,12 +240,16 @@ public:
 				vector<string> splits;
 				StringUtil::split(message,"\t",splits);
 				if(StringUtil::atoi(splits[0])!=cycle){
+
+					cerr<<"cycle number not equal from master"<<endl;
 					sendMessage(MASTERID,"Error\tcycle number not equal from master");
 					terminate();
 					return;
 				}
 				if(splits[1]=="RemoveKCSAndUpdate"){
 					if(splits.size()!=3){
+						
+						cerr<<"RemoveKCSAndUpdate <kmerToRemove> not given"<<endl;
 						sendMessage(MASTERID,"Error\tRemoveKCSAndUpdate <kmerToRemove> not given");
 						terminate();	
 						return;

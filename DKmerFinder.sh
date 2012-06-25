@@ -15,7 +15,7 @@ jobsubcommand=$7
 
 numOfLinesPerSplit=`expr $chunkSize "*" 4`
 
-#rmrie.sh -R ${outDir}
+rmrie.sh -R ${outDir}
 
 mkdir.py ${outDir}
 mkdir.py ${outDir}/fg
