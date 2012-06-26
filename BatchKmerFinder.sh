@@ -47,12 +47,13 @@ done
 
 #kmer    enrichment      control_count   experim_count
 
-
+echo $jfiles
 
 echo "kmer" > $outDir/tmp/concheaderColumnar.txt
 echo ${concs[@]} | tr " " "\n" >> $outDir/tmp/concheaderColumnar.txt
 
-eval "multijoinu.sh -f NA $outDir/kmers.merged.txt $jfiles"  #joint
+rmrie.sh $outDir/kmers.merged.txt
+eval "multijoinu.sh -fNA $outDir/kmers.merged.txt $jfiles"  #joint
 
 columnSelector="enrichment"
 cuta.py -f.kmer,@$columnSelector $outDir/kmers.merged.txt > $outDir/tmp/t1.txt
@@ -74,3 +75,6 @@ matrixTranspose.py $outDir/tmp/t1.txt > $outDir/tmp/t1.txt.t
 cuta.py -f2-_1 $outDir/tmp/t1.txt.t > $outDir/tmp/t1.txt.t.f2
 paste  $outDir/tmp/concheaderColumnar.txt $outDir/tmp/t1.txt.t.f2 > $outDir/tmp/t1.txt.t.swapped
 matrixTranspose.py $outDir/tmp/t1.txt.t.swapped > $outDir/kmers.merged.$columnSelector.txt
+
+rm $outDir/kmers.merged.txt
+rm -R $outDir/tmp
