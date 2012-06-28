@@ -5,8 +5,8 @@
 #include <iostream>
 #include <fstream>
 #include <dirent.h>
-#include "CppUtilClasses/StringUtil.h"
-#include "CppUtilClasses/SystemUtil.h"
+#include <StringUtil.h>
+#include <SystemUtil.h>
 
 using namespace std;
 #include <inttypes.h>
