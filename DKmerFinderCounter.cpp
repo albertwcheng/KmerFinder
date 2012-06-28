@@ -29,9 +29,9 @@
 #include <time.h>
 using namespace std;
 #include "SimpleFastqReader.h"
-#include "CppUtilClasses/FileIPMLoop.h"
-#include "CppUtilClasses/StringUtil.h"
-#include "CppUtilClasses/SmartPtr.h"
+#include <FileIPMLoop.h>
+#include <StringUtil.h>
+#include <SmartPtr.h>
 #include "defaultValues.h"
 
 
