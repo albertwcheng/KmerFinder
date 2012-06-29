@@ -13,6 +13,10 @@ if [ $# -lt 7 ]; then
 	exit 1
 fi
 
+currentDir=`pwd`
+
+echo "currentDir=$currentDir"
+
 inputSettingFile=$1
 k=$2
 topN=$3
@@ -34,7 +38,7 @@ for((i=0;i<${#concs[@]};i++)); do
 	bgfile=${bgfiles[$i]}
 	
 	echo running fgfile=$fgfile bgfile=$bgfile for conc=$conc
-	bash DKmerFinder.sh $fgfile $bgfile $k $topN $outDir/$conc/ $chunkJobs "$bsubcommand" "$bjobcommand"
+	bash DKmerFinder.sh $fgfile $bgfile $k $topN $outDir/$conc/ $chunkJobs "$bsubcommand" "$bjobcommand" $currentDir
 	
 done
 

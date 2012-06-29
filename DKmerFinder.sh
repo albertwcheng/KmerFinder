@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if [ $# -lt 8 ]; then
-	echo $0 fg bg k topN outDir chunkSize jobsubcommand jobstatcommand
+if [ $# -lt 9 ]; then
+	echo $0 fg bg k topN outDir chunkSize jobsubcommand jobstatcommand currentDir
 	exit 1;
 fi
 
@@ -16,6 +16,7 @@ outDir=$5
 chunkSize=$6
 jobsubcommand=$7
 jobstatcommand=$8
+currentDir=$9
 
 numOfLinesPerSplit=`expr $chunkSize "*" 4`
 
@@ -47,15 +48,18 @@ bgSlavesCS=`echo ${bgSlaves[@]} | tr " " ","`
 
 for((i=0;i<${#fgfiles[@]};i++)); do
 	echo '#!/bin/bash' > ${outDir}/jobscripts/${fgSlaves[$i]}.sh
+	echo "cd $currentDir" >> ${outDir}/jobscripts/${fgSlaves[$i]}.sh
 	echo "./DKmerFinderCounter $outDir ${fgSlaves[$i]} ${fgfiles[$i]} $k" >> ${outDir}/jobscripts/${fgSlaves[$i]}.sh
 done
 
 for((i=0;i<${#bgfiles[@]};i++)); do
 	echo '#!/bin/bash' > ${outDir}/jobscripts/${bgSlaves[$i]}.sh
+	echo "cd $currentDir" >> ${outDir}/jobscripts/${bgSlaves[$i]}.sh
 	echo "./DKmerFinderCounter $outDir ${bgSlaves[$i]} ${bgfiles[$i]} $k"  >> ${outDir}/jobscripts/${bgSlaves[$i]}.sh
 done
 
 echo '#!/bin/bash' > ${outDir}/jobscripts/master.sh
+echo "cd $currentDir" >> ${outDir}/jobscripts/master.sh
 echo "./DKmerFinderMaster $outDir $fgSlavesCS $bgSlavesCS $k $topN" >> ${outDir}/jobscripts/master.sh
 
 echo "submitting jobs"
