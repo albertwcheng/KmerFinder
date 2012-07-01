@@ -79,7 +79,8 @@ echo "job sumitted:"
 cat $jsubmitted | tr "\n" ","
 echo ""
 
-for((i=0;i<$DEADLINE;i++)); do
+#for((i=0;i<$DEADLINE;i++)); do
+while [ 1 ]; do
 	sleep 1m
 
 	jstemp=`tempfile`
