@@ -274,7 +274,22 @@ public:
 						string kmerSeq = topKmer->kmerSeq;
 						//cerr<<"d"<<endl;
 						if(cycle==1){
-							(*fout)<<"kmer\tenrichment\tcontrol_count\texperim_count"<<endl;	
+							(*fout)<<"kmer\tenrichment\tcontrol_count\texperim_count"<<endl;
+							
+							//also out the enrichment without any subtraction
+							cerr<<"Output Kmer Unsubtracted Enrichment File"<<endl;
+							ofstream foutKmerUnsub((outDir+DS+"kmers_unsub.txt").c_str());
+							//top kmer first (because it has been poped from the list
+							foutKmerUnsub<<"kmer\tenrichment\tcontrol_count\texperim_count"<<endl;
+							foutKmerUnsub<<kmerSeq<<"\t"<<topKmer->enrichment()<<"\t"<<topKmer->bgInstances<<"\t"<<topKmer->fgInstances<<endl;
+							
+							for(list< SmartPtr<kmerRecord> >::reverse_iterator ri=kmers.rbegin();ri!=kmers.rend();ri++){
+								kmerRecord* curKmer=(*ri);
+								foutKmerUnsub<<curKmer->kmerSeq<<"\t"<<curKmer->enrichment()<<"\t"<<curKmer->bgInstances<<"\t"<<curKmer->fgInstances<<endl;
+									
+							}
+							
+							foutKmerUnsub.close();
 						}
 						(*fout)<<kmerSeq<<"\t"<<topKmer->enrichment()<<"\t"<<topKmer->bgInstances<<"\t"<<topKmer->fgInstances<<endl;
 						
