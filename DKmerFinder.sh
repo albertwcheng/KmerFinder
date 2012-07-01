@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -lt 9 ]; then
-	echo $0 fg bg k topN outDir chunkSize jobsubcommand jobstatcommand currentDir
+	echo $0 fg bg k topN outDir chunkSize jobsubcommand jobstatcommand workingDir
 	exit 1;
 fi
 
@@ -20,17 +20,17 @@ currentDir=$9
 
 numOfLinesPerSplit=`expr $chunkSize "*" 4`
 
-#rmrie.sh -R ${outDir}
+rmrie.sh -R ${outDir}
 
 mkdir.py ${outDir}
 mkdir.py ${outDir}/fg
 mkdir.py ${outDir}/bg
 mkdir.py ${outDir}/jobscripts
 
-#echo "spliting foreground files"
-#split -l ${numOfLinesPerSplit} ${fg} ${outDir}/fg/fg
-#echo "splitting background files"
-#split -l ${numOfLinesPerSplit} ${bg} ${outDir}/bg/bg
+echo "spliting foreground files"
+split -l ${numOfLinesPerSplit} ${fg} ${outDir}/fg/fg
+echo "splitting background files"
+split -l ${numOfLinesPerSplit} ${bg} ${outDir}/bg/bg
 
 fgfiles=(`ls ${outDir}/fg/*`)
 for((i=0;i<${#fgfiles[@]};i++)); do
@@ -99,9 +99,9 @@ done
 
 #clean up
 
-#rm -R $outDir/ipm
-#rm -R $outDir/fg
-#rm -R $outDir/bg
-#rm -R $outDir/kmerUpdates
+rm -R $outDir/ipm
+rm -R $outDir/fg
+rm -R $outDir/bg
+rm -R $outDir/kmerUpdates
 
 date
