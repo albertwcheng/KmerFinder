@@ -304,6 +304,7 @@ public:
 						}else{
 							
 							//advance
+							cerr<<"top Kmer at cycle "<<cycle<<" is "<<kmerSeq<<endl;
 							updateCycleAndResetRespondents();
 							askSlavesToRemoveAndUpdate(kmerSeq);
 						}
