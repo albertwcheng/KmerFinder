@@ -25,6 +25,8 @@ outDir=$5
 bsubcommand=$6
 bjobcommand=$7
 
+outDir=`abspath.py $outDir`
+
 mkdir.py $outDir
 mkdir.py $outDir/tmp/
 
@@ -36,6 +38,10 @@ for((i=0;i<${#concs[@]};i++)); do
 	conc=${concs[$i]}
 	fgfile=${fgfiles[$i]}
 	bgfile=${bgfiles[$i]}
+	
+	fgfile=`abspath.py $fgfile`
+	bgfile=`abspath.py $bgfile`
+	
 	
 	echo running fgfile=$fgfile bgfile=$bgfile for conc=$conc
 	bash DKmerFinder.sh $fgfile $bgfile $k $topN $outDir/$conc/ $chunkJobs "$bsubcommand" "$bjobcommand" $currentDir

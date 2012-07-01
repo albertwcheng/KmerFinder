@@ -352,10 +352,18 @@ int main(int argc,char**argv){
 	string outDir=argv[1];
 	string name=argv[2];
 	string filename=argv[3];
+
+	
 	int k=atoi(argv[4]);
 
 	DKmerCounter counterLoop(outDir,name,SLAVEDELAYTIME,k);
 	counterLoop.sendMessage("master","1\tHi");
+	
+	if(!SystemUtil::fexists(filename)){
+		cerr<<"Error: File "<<filename<<" doest not exist"<<endl;
+		counterLoop.sendMessage("master","1\tInput file "+filename+" not exist");	
+	}
+	
 	counterLoop.loadSeqFile(filename);
 	counterLoop.loop();
 	

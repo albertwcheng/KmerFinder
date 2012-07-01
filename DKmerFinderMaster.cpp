@@ -177,10 +177,18 @@ public:
 	}
 	
 	kmerRecord* sortAndFindTopKmer(){
+		if(kmers.size()==0)
+			return NULL;
+			
+		//cerr<<"b1"<<endl;
 		kmers.sort(); //sort the linked list by enrichment score
+		//cerr<<"b2"<<endl;
 		kmerRecord*result=kmers.back();
+		//cerr<<"b3"<<endl;
 		kmers.pop_back(); //remove the best kmer.
+		//cerr<<"b4"<<endl;
 		kmersMap.erase(result->kmerSeq); //remove that also from the kmer map
+		//cerr<<"b5"<<endl;
 		return result;
 	}
 	
@@ -251,11 +259,20 @@ public:
 					if(respondents==totalSlaves){
 						cerr<<"all slaves updated kmer counts at cycle "<<cycle<<endl;
 						cerr<<"now find top enriched kmer at cycle "<<cycle<<endl;
+						//cerr<<"a"<<endl;
 						kmerRecord* topKmer=sortAndFindTopKmer();
-						
+						if (!topKmer)
+						{
+							cerr<<"List exhausted. Abort"<<endl;
+							cerr<<"Sending all slaves !TERMINATE"<<endl;
+							terminateAllSlaves();
+							terminate();	
+							
+						}
+						//cerr<<"c"<<endl;
 						//output this topKmer
 						string kmerSeq = topKmer->kmerSeq;
-						
+						//cerr<<"d"<<endl;
 						if(cycle==1){
 							(*fout)<<"kmer\tenrichment\tcontrol_count\texperim_count"<<endl;	
 						}

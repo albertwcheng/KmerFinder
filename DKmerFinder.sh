@@ -20,17 +20,17 @@ currentDir=$9
 
 numOfLinesPerSplit=`expr $chunkSize "*" 4`
 
-rmrie.sh -R ${outDir}
+#rmrie.sh -R ${outDir}
 
 mkdir.py ${outDir}
 mkdir.py ${outDir}/fg
 mkdir.py ${outDir}/bg
 mkdir.py ${outDir}/jobscripts
 
-echo "spliting foreground files"
-split -l ${numOfLinesPerSplit} ${fg} ${outDir}/fg/fg
-echo "splitting background files"
-split -l ${numOfLinesPerSplit} ${bg} ${outDir}/bg/bg
+#echo "spliting foreground files"
+#split -l ${numOfLinesPerSplit} ${fg} ${outDir}/fg/fg
+#echo "splitting background files"
+#split -l ${numOfLinesPerSplit} ${bg} ${outDir}/bg/bg
 
 fgfiles=(`ls ${outDir}/fg/*`)
 for((i=0;i<${#fgfiles[@]};i++)); do
@@ -66,6 +66,8 @@ echo "submitting jobs"
 idx=0
 for i in ${outDir}/jobscripts/*.sh; do
 	chmod 777 $i;
+	i=`abspath.py $i`
+	echo "submit job command $jobsubcommand $i | extractNumbers.py --numOfNumsPerLine 1 | head -n 1"
 	jobnum[$idx]=`eval "$jobsubcommand $i | extractNumbers.py --numOfNumsPerLine 1 | head -n 1"` 
 	idx=`expr $idx + 1`
 done
@@ -97,9 +99,9 @@ done
 
 #clean up
 
-rm -R $outDir/ipm
-rm -R $outDir/fg
-rm -R $outDir/bg
-rm -R $outDir/kmerUpdates
+#rm -R $outDir/ipm
+#rm -R $outDir/fg
+#rm -R $outDir/bg
+#rm -R $outDir/kmerUpdates
 
 date
