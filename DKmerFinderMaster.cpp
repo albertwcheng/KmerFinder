@@ -171,7 +171,7 @@ public:
 			int64 kmerDiff;
 			fil>>kmerDiff;
 			
-			if(kmerSeq=="##NumSeqs"){
+			if(kmerSeq=="#NumSeqs"){
 				if(mode==UPDATE_FG){
 					this->fgTotalNumSeqs+=kmerDiff;
 				}else{
