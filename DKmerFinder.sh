@@ -67,8 +67,8 @@ idx=0
 for i in ${outDir}/jobscripts/*.sh; do
 	chmod 777 $i;
 	i=`abspath.py $i`
-	echo "submit job command $jobsubcommand $i | extractNumbers.py --numOfNumsPerLine 1 | head -n 1"
-	jobnum[$idx]=`eval "$jobsubcommand $i | extractNumbers.py --numOfNumsPerLine 1 | head -n 1"` 
+	echo "submit job command $jobsubcommand  -o ${i}.stdout -e ${i}.stderr $i | extractNumbers.py --numOfNumsPerLine 1 | head -n 1"
+	jobnum[$idx]=`eval "$jobsubcommand -o ${i}.stdout -e ${i}.stderr $i | extractNumbers.py --numOfNumsPerLine 1 | head -n 1"` 
 	idx=`expr $idx + 1`
 done
 

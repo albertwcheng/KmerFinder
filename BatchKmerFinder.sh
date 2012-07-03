@@ -48,12 +48,18 @@ for((i=0;i<${#concs[@]};i++)); do
 	
 done
 
+rmrie.sh $outDir/tmp/union_kmers.txt
+
 jfiles=""
 for((i=0;i<${#concs[@]};i++)); do
 	conc=${concs[$i]}
 	jfiles="$jfiles $outDir/$conc/kmers.txt"
-	
+	cuta.py -f.kmer $outDir/$conc/kmers.txt >> $outDir/tmp/union_kmers.txt
 done
+
+uniqa.py $outDir/tmp/union_kmers.txt > $outDir/tmp/uniq_union_kmers.txt
+jfiles="$outDir/tmp/uniq_union_kmers.txt $jfiles"
+
 
 #kmer    enrichment      control_count   experim_count
 
@@ -87,4 +93,45 @@ paste  $outDir/tmp/concheaderColumnar.txt $outDir/tmp/t1.txt.t.f2 > $outDir/tmp/
 matrixTranspose.py $outDir/tmp/t1.txt.t.swapped > $outDir/kmers.merged.$columnSelector.txt
 
 rm $outDir/kmers.merged.txt
+
+jfiles=""
+for((i=0;i<${#concs[@]};i++)); do
+	conc=${concs[$i]}
+	jfiles="$jfiles $outDir/$conc/kmers_unsub.txt"
+	
+done
+
+#kmer    enrichment      control_count   experim_count
+
+echo $jfiles
+
+echo "kmer" > $outDir/tmp/concheaderColumnar.txt
+echo ${concs[@]} | tr " " "\n" >> $outDir/tmp/concheaderColumnar.txt
+
+rmrie.sh $outDir/kmers_unsub.merged.txt
+eval "multijoinu.sh -fNA $outDir/kmers_unsub.merged.txt $jfiles"  #joint
+
+columnSelector="enrichment"
+cuta.py -f.kmer,@$columnSelector $outDir/kmers_unsub.merged.txt > $outDir/tmp/t1.txt
+matrixTranspose.py $outDir/tmp/t1.txt > $outDir/tmp/t1.txt.t
+cuta.py -f2-_1 $outDir/tmp/t1.txt.t > $outDir/tmp/t1.txt.t.f2
+paste  $outDir/tmp/concheaderColumnar.txt $outDir/tmp/t1.txt.t.f2 > $outDir/tmp/t1.txt.t.swapped
+matrixTranspose.py $outDir/tmp/t1.txt.t.swapped > $outDir/kmers_unsub.merged.$columnSelector.txt
+
+columnSelector="control_count"
+cuta.py -f.kmer,@$columnSelector $outDir/kmers_unsub.merged.txt > $outDir/tmp/t1.txt
+matrixTranspose.py $outDir/tmp/t1.txt > $outDir/tmp/t1.txt.t
+cuta.py -f2-_1 $outDir/tmp/t1.txt.t > $outDir/tmp/t1.txt.t.f2
+paste  $outDir/tmp/concheaderColumnar.txt $outDir/tmp/t1.txt.t.f2 > $outDir/tmp/t1.txt.t.swapped
+matrixTranspose.py $outDir/tmp/t1.txt.t.swapped > $outDir/kmers_unsub.merged.$columnSelector.txt
+
+columnSelector="experim_count"
+cuta.py -f.kmer,@$columnSelector $outDir/kmers_unsub.merged.txt > $outDir/tmp/t1.txt
+matrixTranspose.py $outDir/tmp/t1.txt > $outDir/tmp/t1.txt.t
+cuta.py -f2-_1 $outDir/tmp/t1.txt.t > $outDir/tmp/t1.txt.t.f2
+paste  $outDir/tmp/concheaderColumnar.txt $outDir/tmp/t1.txt.t.f2 > $outDir/tmp/t1.txt.t.swapped
+matrixTranspose.py $outDir/tmp/t1.txt.t.swapped > $outDir/kmers_unsub.merged.$columnSelector.txt
+
+rm $outDir/kmers_unsub.merged.txt
+
 rm -R $outDir/tmp

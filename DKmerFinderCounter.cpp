@@ -192,6 +192,8 @@ public:
 		}
 		
 		ofstream fil((outDir+DS+KMERUPDATEPATH+DS+name+".txt").c_str());
+		
+		
 		for(map<string,SmartPtr<kmerRecord> >::iterator i=kmers.begin();i!=kmers.end();i++){
 			i->second->printUpdateAndUpdateCountHistory(fil);
 		}

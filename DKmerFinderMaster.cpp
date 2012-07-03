@@ -43,6 +43,7 @@ using namespace std;
 #endif 
 
 #define int64 int64_t
+#define uint64 uint64_t
 
 #define VERSION "D/1.0"
 
@@ -63,16 +64,16 @@ public:
 		
 	}
 	
-	inline float enrichment() const{
+	inline double enrichment(double normalizationFactor) const{
 		if(bgInstances==0){
 			return -1; //unknown	
 		}
-		return float(fgInstances)/bgInstances;
+		return double(fgInstances)/bgInstances*normalizationFactor;
 	}
 	
 	//do we need sorting?
 	inline bool operator < (const kmerRecord& right) const{
-		return this->enrichment()<right.enrichment();
+		return this->enrichment(1.0)<right.enrichment(1.0);
 	
 	}
 	
@@ -92,8 +93,9 @@ public:
 	
 	uint64 tick;
 	
-	int64 totalKmerInstances;
-	int64 totalNumSeqs;
+	uint64 fgTotalKmerPositions;
+	uint64 bgTotalKmerPositions;
+	//uint64 totalNumSeqs;
 
 	string outDir;
 	
@@ -112,7 +114,7 @@ public:
 	
 	DKmerFinder(string _outDir,string _name,int _delayTimeInSeconds,int _k,string _fgSlaves,string _bgSlaves,int _topN):
 		FileIPMLoop(_outDir+IPMSubFolder,_name,_delayTimeInSeconds),outDir(_outDir),
-		k(_k),cycle(1),totalKmerInstances(0),totalNumSeqs(0),respondents(0),topN(_topN),hirespondents(0),tick(0)
+		k(_k),cycle(1),fgTotalKmerPositions(0),bgTotalKmerPositions(0),/*totalNumSeqs(0),*/respondents(0),topN(_topN),hirespondents(0),tick(0)
 	{
 		StringUtil::split(_fgSlaves,",",fgSlaves);
 		StringUtil::split(_bgSlaves,",",bgSlaves);
@@ -144,8 +146,10 @@ public:
 		
 		if(mode==UPDATE_FG){
 			thisKmer->fgInstances+=diff;
+			fgTotalKmerPositions+=diff;
 		}else{
-			thisKmer->bgInstances+=diff;	
+			thisKmer->bgInstances+=diff;
+			bgTotalKmerPositions+=diff;	
 		}
 	}
 	
@@ -259,6 +263,11 @@ public:
 					if(respondents==totalSlaves){
 						cerr<<"all slaves updated kmer counts at cycle "<<cycle<<endl;
 						cerr<<"now find top enriched kmer at cycle "<<cycle<<endl;
+						
+						double normalizationFactor=double(this->bgTotalKmerPositions)/this->fgTotalKmerPositions;
+						
+						cerr<<"fgTotalKmerPositions="<<this->fgTotalKmerPositions<<" bgTotalKmerPositions="<<this->bgTotalKmerPositions<<" normalization factor (*bt/ft)="<<normalizationFactor<<endl;
+						
 						//cerr<<"a"<<endl;
 						kmerRecord* topKmer=sortAndFindTopKmer();
 						if (!topKmer)
@@ -281,17 +290,17 @@ public:
 							ofstream foutKmerUnsub((outDir+DS+"kmers_unsub.txt").c_str());
 							//top kmer first (because it has been poped from the list
 							foutKmerUnsub<<"kmer\tenrichment\tcontrol_count\texperim_count"<<endl;
-							foutKmerUnsub<<kmerSeq<<"\t"<<topKmer->enrichment()<<"\t"<<topKmer->bgInstances<<"\t"<<topKmer->fgInstances<<endl;
+							foutKmerUnsub<<kmerSeq<<"\t"<<topKmer->enrichment(normalizationFactor)<<"\t"<<topKmer->bgInstances<<"\t"<<topKmer->fgInstances<<endl;
 							
 							for(list< SmartPtr<kmerRecord> >::reverse_iterator ri=kmers.rbegin();ri!=kmers.rend();ri++){
 								kmerRecord* curKmer=(*ri);
-								foutKmerUnsub<<curKmer->kmerSeq<<"\t"<<curKmer->enrichment()<<"\t"<<curKmer->bgInstances<<"\t"<<curKmer->fgInstances<<endl;
+								foutKmerUnsub<<curKmer->kmerSeq<<"\t"<<curKmer->enrichment(normalizationFactor)<<"\t"<<curKmer->bgInstances<<"\t"<<curKmer->fgInstances<<endl;
 									
 							}
 							
 							foutKmerUnsub.close();
 						}
-						(*fout)<<kmerSeq<<"\t"<<topKmer->enrichment()<<"\t"<<topKmer->bgInstances<<"\t"<<topKmer->fgInstances<<endl;
+						(*fout)<<kmerSeq<<"\t"<<topKmer->enrichment(normalizationFactor)<<"\t"<<topKmer->bgInstances<<"\t"<<topKmer->fgInstances<<endl;
 						
 						delete topKmer; //free it from memory
 						
@@ -305,6 +314,11 @@ public:
 							
 							//advance
 							cerr<<"top Kmer at cycle "<<cycle<<" is "<<kmerSeq<<endl;
+							
+							//now subtract the total kmer counts from fg and bg
+							this->fgTotalKmerPositions-=topKmer->fgInstances;
+							this->bgTotalKmerPositions-=topKmer->bgInstances;
+							
 							updateCycleAndResetRespondents();
 							askSlavesToRemoveAndUpdate(kmerSeq);
 						}
