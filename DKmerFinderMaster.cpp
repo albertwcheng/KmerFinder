@@ -34,6 +34,7 @@ using namespace std;
 #include <SmartPtr.h>
 #include "defaultValues.h"
 
+#define USE_NUM_SEQS_FOR_NORMALIZATION //or USE_NUM_KMER_POSITIONS_FOR_NORMALIZATION
 
 
 #ifdef USE_MULTISET
@@ -95,6 +96,8 @@ public:
 	
 	uint64 fgTotalKmerPositions;
 	uint64 bgTotalKmerPositions;
+	uint64 fgTotalNumSeqs;
+	uint64 bgTotalNumSeqs;
 	//uint64 totalNumSeqs;
 
 	string outDir;
@@ -114,7 +117,7 @@ public:
 	
 	DKmerFinder(string _outDir,string _name,int _delayTimeInSeconds,int _k,string _fgSlaves,string _bgSlaves,int _topN):
 		FileIPMLoop(_outDir+IPMSubFolder,_name,_delayTimeInSeconds),outDir(_outDir),
-		k(_k),cycle(1),fgTotalKmerPositions(0),bgTotalKmerPositions(0),/*totalNumSeqs(0),*/respondents(0),topN(_topN),hirespondents(0),tick(0)
+		k(_k),cycle(1),fgTotalKmerPositions(0),bgTotalKmerPositions(0),fgTotalNumSeqs(0),bgTotalNumSeqs(0),respondents(0),topN(_topN),hirespondents(0),tick(0)
 	{
 		StringUtil::split(_fgSlaves,",",fgSlaves);
 		StringUtil::split(_bgSlaves,",",bgSlaves);
@@ -162,10 +165,24 @@ public:
 			if(kmerSeq==TERMINATOR){
 				break;	
 			}
+			
+			
+			
 			int64 kmerDiff;
 			fil>>kmerDiff;
 			
-			updateKmerWithDiff(kmerSeq, kmerDiff, mode ,allowNewKmerAddition);
+			if(kmerSeq=="##NumSeqs"){
+				if(mode==UPDATE_FG){
+					this->fgTotalNumSeqs+=kmerDiff;
+				}else{
+					this->bgTotalNumSeqs+=kmerDiff;	
+				}
+			
+			}
+			else{
+			
+				updateKmerWithDiff(kmerSeq, kmerDiff, mode ,allowNewKmerAddition);
+			}
 		}
 		
 		fil.close();	
@@ -264,9 +281,13 @@ public:
 						cerr<<"all slaves updated kmer counts at cycle "<<cycle<<endl;
 						cerr<<"now find top enriched kmer at cycle "<<cycle<<endl;
 						
+						#ifdef USE_NUM_SEQS_FOR_NORMALIZATION
+						double normalizationFactor=double(this->bgTotalNumSeqs)/this->fgTotalNumSeqs;
+						cerr<<"fgTotalNumSeqs="<<this->fgTotalNumSeqs<<" bgTotalNumSeqs="<<this->bgTotalNumSeqs<<" normalization factor (*bt/ft)="<<normalizationFactor<<endl;
+						#else
 						double normalizationFactor=double(this->bgTotalKmerPositions)/this->fgTotalKmerPositions;
-						
 						cerr<<"fgTotalKmerPositions="<<this->fgTotalKmerPositions<<" bgTotalKmerPositions="<<this->bgTotalKmerPositions<<" normalization factor (*bt/ft)="<<normalizationFactor<<endl;
+						#endif
 						
 						//cerr<<"a"<<endl;
 						kmerRecord* topKmer=sortAndFindTopKmer();
@@ -283,24 +304,43 @@ public:
 						string kmerSeq = topKmer->kmerSeq;
 						//cerr<<"d"<<endl;
 						if(cycle==1){
-							(*fout)<<"kmer\tenrichment\tcontrol_count\texperim_count"<<endl;
+							#ifdef USE_NUM_SEQS_FOR_NORMALIZATION
+							(*fout)<<"kmer\tenrichment\tcontrol_count\texperim_count\tcontrol_total_seqs\texperim_total_seqs\tnormalization_factor"<<endl;
+							#else
+							(*fout)<<"kmer\tenrichment\tcontrol_count\texperim_count\tcontrol_total_pos\texperim_total_pos\tnormalization_factor"<<endl;
+							#endif
 							
 							//also out the enrichment without any subtraction
 							cerr<<"Output Kmer Unsubtracted Enrichment File"<<endl;
 							ofstream foutKmerUnsub((outDir+DS+"kmers_unsub.txt").c_str());
 							//top kmer first (because it has been poped from the list
-							foutKmerUnsub<<"kmer\tenrichment\tcontrol_count\texperim_count"<<endl;
-							foutKmerUnsub<<kmerSeq<<"\t"<<topKmer->enrichment(normalizationFactor)<<"\t"<<topKmer->bgInstances<<"\t"<<topKmer->fgInstances<<endl;
+							#ifdef USE_NUM_SEQS_FOR_NORMALIZATION
+							foutKmerUnsub<<"kmer\tenrichment\tcontrol_count\texperim_count\tcontrol_total_seqs\texperim_total_seqs\tnormalization_factor"<<endl;
+							foutKmerUnsub<<kmerSeq<<"\t"<<topKmer->enrichment(normalizationFactor)<<"\t"<<topKmer->bgInstances<<"\t"<<topKmer->fgInstances<<"\t"<<this->bgTotalNumSeqs<<"\t"<<this->fgTotalNumSeqs<<"\t"<<normalizationFactor<<endl;
+							#else
+							foutKmerUnsub<<"kmer\tenrichment\tcontrol_count\texperim_count\tcontrol_total_pos\texperim_total_pos\tnormalization_factor"<<endl;
+							foutKmerUnsub<<kmerSeq<<"\t"<<topKmer->enrichment(normalizationFactor)<<"\t"<<topKmer->bgInstances<<"\t"<<topKmer->fgInstances<<"\t"<<this->bgTotalKmerPositions<<"\t"<<this->fgTotalKmerPositions<<"\t"<<normalizationFactor<<endl;
+							#endif
 							
 							for(list< SmartPtr<kmerRecord> >::reverse_iterator ri=kmers.rbegin();ri!=kmers.rend();ri++){
 								kmerRecord* curKmer=(*ri);
-								foutKmerUnsub<<curKmer->kmerSeq<<"\t"<<curKmer->enrichment(normalizationFactor)<<"\t"<<curKmer->bgInstances<<"\t"<<curKmer->fgInstances<<endl;
+								
+								#ifdef USE_NUM_SEQS_FOR_NORMALIZATION
+								foutKmerUnsub<<curKmer->kmerSeq<<"\t"<<curKmer->enrichment(normalizationFactor)<<"\t"<<curKmer->bgInstances<<"\t"<<curKmer->fgInstances<<"\t"<<this->bgTotalNumSeqs<<"\t"<<this->fgTotalNumSeqs<<"\t"<<normalizationFactor<<endl;
+								#else
+								foutKmerUnsub<<curKmer->kmerSeq<<"\t"<<curKmer->enrichment(normalizationFactor)<<"\t"<<curKmer->bgInstances<<"\t"<<curKmer->fgInstances<<"\t"<<this->bgTotalKmerPositions<<"\t"<<this->fgTotalKmerPositions<<"\t"<<normalizationFactor<<endl;
+								#endif
 									
 							}
 							
 							foutKmerUnsub.close();
 						}
-						(*fout)<<kmerSeq<<"\t"<<topKmer->enrichment(normalizationFactor)<<"\t"<<topKmer->bgInstances<<"\t"<<topKmer->fgInstances<<endl;
+						
+						#ifdef USE_NUM_SEQS_FOR_NORMALIZATION
+						(*fout)<<kmerSeq<<"\t"<<topKmer->enrichment(normalizationFactor)<<"\t"<<topKmer->bgInstances<<"\t"<<topKmer->fgInstances<<"\t"<<this->bgTotalNumSeqs<<"\t"<<this->fgTotalNumSeqs<<"\t"<<normalizationFactor<<endl;
+						#else
+						(*fout)<<kmerSeq<<"\t"<<topKmer->enrichment(normalizationFactor)<<"\t"<<topKmer->bgInstances<<"\t"<<topKmer->fgInstances<<"\t"<<this->bgTotalKmerPositions<<"\t"<<this->fgTotalKmerPositions<<"\t"<<normalizationFactor<<endl;
+						#endif
 						
 						delete topKmer; //free it from memory
 						

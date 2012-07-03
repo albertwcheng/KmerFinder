@@ -43,6 +43,7 @@ using namespace std;
 #endif 
 
 #define int64 int64_t
+#define uint64 uint64_t
 
 #define VERSION "D/1.0"
 
@@ -87,13 +88,19 @@ public:
 	
 	//void kmerDisappearFromSeqs();
 	
-	void removeSequencesContainingThisKmer();
+	void removeSequencesContainingThisKmer(int64& totalNumSeq);
 };
 
 class SeqRecord
 {
 public:
 	set<kmerRecord*> kmersFromThisSeq;
+	bool removed;
+	
+	SeqRecord():removed(false){
+		
+	}
+	
 	inline void disappearFromKmersExcept(kmerRecord* except){
 		for(set<kmerRecord*>::iterator i=kmersFromThisSeq.begin();i!=kmersFromThisSeq.end();i++){
 			kmerRecord* thisKmer=(*i);
@@ -115,9 +122,14 @@ public:
 };
 
 
-void kmerRecord::removeSequencesContainingThisKmer(){
+void kmerRecord::removeSequencesContainingThisKmer(int64& totalNumSeq){
 	for(setType<SeqRecord*>::iterator i=seqs.begin();i!=seqs.end();i++){
 		SeqRecord* thisSeq=(*i);
+		if(!thisSeq->removed){
+			//was not previously removed
+			thisSeq->removed=true;
+			totalNumSeq--;
+		}
 		thisSeq->disappearFromKmersExcept(this);
 	}
 	
@@ -144,8 +156,10 @@ public:
 	int k; //wordsize
 	int cycle;
 	
-	int64 totalKmerInstances;
+	uint64 totalKmerInstances;
 	int64 totalNumSeqs;
+	
+	int64 prevTotalNumSeqs;
 
 	string outDir;
 	
@@ -154,7 +168,7 @@ public:
 	
 	DKmerCounter(string _outDir,string _name,int _delayTimeInSeconds,int _k):
 		FileIPMLoop(_outDir+IPMSubFolder,_name,_delayTimeInSeconds),outDir(_outDir),
-		k(_k),cycle(1),totalKmerInstances(0),totalNumSeqs(0){
+		k(_k),cycle(1),totalKmerInstances(0),totalNumSeqs(0),prevTotalNumSeqs(0){
 	}
 	
 	inline int64 numUniqKmers(){
@@ -193,6 +207,9 @@ public:
 		
 		ofstream fil((outDir+DS+KMERUPDATEPATH+DS+name+".txt").c_str());
 		
+		//put total number of sequences
+		fil<<"#NumSeqs"<<"\t"<<(this->totalNumSeqs-this->prevTotalNumSeqs)<<endl;
+		this->prevTotalNumSeqs=this->totalNumSeqs; //update!
 		
 		for(map<string,SmartPtr<kmerRecord> >::iterator i=kmers.begin();i!=kmers.end();i++){
 			i->second->printUpdateAndUpdateCountHistory(fil);
@@ -214,7 +231,7 @@ public:
 			return;	
 		}
 		
-		i->second->removeSequencesContainingThisKmer();
+		i->second->removeSequencesContainingThisKmer(this->totalNumSeqs);
 	}
 	
     void loadSeqFile(const string&filename){
