@@ -1,6 +1,8 @@
 #include "DNAPrefixTree.h"
 #include <iostream>
 #include <fstream>
+//#include <stringstream>
+#include <stdlib.h>
 using namespace std;
 
 class SimpleFastqReader
@@ -121,18 +123,31 @@ int main(int argc,const char **argv){
 	//tree.feedSeq("ACGTCCCATGCCAT");
 	//tree.printTree();
 	
-	if(argc<3){
-		cerr<<"Usage:"<<argv[0]<<" fgfile bgfile"<<endl;
+	if(argc<5){
+		cerr<<"Usage:"<<argv[0]<<" fgfile bgfile maxK outDir"<<endl;
 		return 1;	
 	}
 	
-	DNATreeKmerFinder finder(10);
+	
+
+	int maxK=atoi(argv[3]);
+	string outDir=argv[4];
+	DNATreeKmerFinder finder(maxK);
 	finder.readForegroundFile(argv[1]);
 	finder.readBackgroundFile(argv[2]);
-	//finder.printTree();
-	finder.sortLists();
-	finder.printLevelNodes(5,double(finder.numFgSeq)/finder.numBgSeq);
 	
+	//finder.printTree();
+	cerr<<"sorting lists"<<endl;
+	finder.sortLists();
+	cerr<<"output"<<endl;
+	char ist[10];
+	for(int i=1;i<=maxK;i++){
+		sprintf(ist,"%d",i);
+		string filename=outDir+"/"+ist+".txt";
+		ofstream fil(filename.c_str());	
+		finder.printLevelNodes(fil,i,double(finder.numFgSeq)/finder.numBgSeq);
+		fil.close();
+	}
 	//cerr<<finder.maxK<<endl;
 	
 	return 0;	

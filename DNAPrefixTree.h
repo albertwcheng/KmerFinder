@@ -248,9 +248,9 @@ class DNATree{
 			}	
 		}
 		
-		void printLevelNodes(int level,double normalization){
+		void printLevelNodes(ostream& os,int level,double normalization){
 			for(list<SmartPtr<DNATreeNode> >::reverse_iterator i=listsPerK[level-1].rbegin();i!=listsPerK[level-1].rend();i++){
-				cout<<(*i)->getPathFromRoot()<<"\t"<<(*i)->fgcount<<"\t"<<(*i)->bgcount<<"\t"<<(*i)->enrichment(normalization)<<endl;	
+				os<<(*i)->getPathFromRoot()<<"\t"<<(*i)->fgcount<<"\t"<<(*i)->bgcount<<"\t"<<(*i)->enrichment(normalization)<<endl;	
 			}	
 		}
 		
