@@ -320,6 +320,11 @@ class DNATree{
 			}
 		}
 		
+		DNATreeNode* getNodeByPath(const string& path){
+			return root->getNodeByPath(path.c_str(),path.length());	
+		}
+		
+		
 		void printTree(){
 			root->printSubtree();
 		}
